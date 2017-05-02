@@ -234,7 +234,7 @@ module Fluent
 
         args[:sequence_token] = token if token
         begin
-          response = @logs.put_log_events(args)
+          response = @logs.tap { log.info "#put_log_events" }.put_log_events(args)
         rescue Aws::CloudWatchLogs::Errors::InvalidSequenceTokenException, Aws::CloudWatchLogs::Errors::DataAlreadyAcceptedException => err
           sleep 1 # to avoid too many API calls
           log_stream = find_log_stream(group_name, stream_name)
@@ -275,7 +275,7 @@ module Fluent
 
     def create_log_group(group_name)
       begin
-        @logs.create_log_group(log_group_name: group_name)
+        @logs.tap { log.info "#create_log_group" }.create_log_group(log_group_name: group_name)
         @sequence_tokens[group_name] = {}
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
         log.debug "Log group '#{group_name}' already exists"
@@ -284,7 +284,7 @@ module Fluent
 
     def create_log_stream(group_name, stream_name)
       begin
-        @logs.create_log_stream(log_group_name: group_name, log_stream_name: stream_name)
+        @logs.tap { log.info "#create_log_stream" }.create_log_stream(log_group_name: group_name, log_stream_name: stream_name)
         @sequence_tokens[group_name] ||= {}
         @sequence_tokens[group_name][stream_name] = nil
       rescue Aws::CloudWatchLogs::Errors::ResourceAlreadyExistsException
@@ -295,7 +295,7 @@ module Fluent
     def log_group_exists?(group_name)
       if @sequence_tokens[group_name]
         true
-      elsif @logs.describe_log_groups.any? {|page| page.log_groups.any? {|i| i.log_group_name == group_name } }
+      elsif @logs.tap { log.info "#describe_log_groups" }.describe_log_groups.any? {|page| page.log_groups.any? {|i| i.log_group_name == group_name } }
         @sequence_tokens[group_name] = {}
         true
       else
@@ -319,7 +319,7 @@ module Fluent
     def find_log_stream(group_name, stream_name)
       next_token = nil
       loop do
-        response = @logs.describe_log_streams(log_group_name: group_name, log_stream_name_prefix: stream_name, next_token: next_token)
+        response = @logs.tap { log.info "#describe_log_streams" }.describe_log_streams(log_group_name: group_name, log_stream_name_prefix: stream_name, next_token: next_token)
         if (log_stream = response.log_streams.find {|i| i.log_stream_name == stream_name })
           return log_stream
         end
